@@ -23,6 +23,10 @@ class TokenType(Enum):
     SYMBOL = 6 # some case-sensitive symbol, such as 'a' and 'b'
     EOF = 7 # end of file
 
+    LEFT_BRACK = 8 # '['
+    RIGHT_BRACK = 9 # ']'
+    SET = 10 # holds a set of possible chars
+
 class Token:
 
     def __init__(self, type: TokenType, lexeme: str):
@@ -64,6 +68,10 @@ class RegexScanner:
                 return Token(TokenType.LEFT_PAR, '(')
             case ')': 
                 return Token(TokenType.RIGHT_PAR, ')')
+            case '[':
+                return Token(TokenType.LEFT_BRACK, '[')
+            case ']':
+                return Token(TokenType.RIGHT_BRACK, ']')
             case x:
                 if x != '.':
                     return Token(TokenType.SYMBOL, x)
@@ -95,10 +103,9 @@ class RegexParser:
 
     regex = alternate
     alternate = concat ('|' concat)*
-    # concat = closure ('.' closure)*
     concat = closure (closure)*
     closure = atomic ('*')*
-    atomic = symbol | '(' alternate ')'
+    atomic = symbol | '(' alternate ')' | '[' set ']'
     """
 
     def __init__(self, tokens: list[Token]):
@@ -117,10 +124,15 @@ class RegexParser:
             print(message)
             exit(1)
 
-    def peek(self) -> Token: # type: ignore
-        if self.index < len(self.tokens):
-            return self.tokens[self.index]
+    def peek(self, ahead: int = 0) -> Token: # type: ignore
+        if 0 <= self.index + ahead < len(self.tokens):
+            return self.tokens[self.index + ahead]
         error("Peek exceeds boundaries.")
+
+    def previous(self) -> Token: # type: ignore
+        if 0 < self.index <= len(self.tokens):
+            return self.tokens[self.index - 1]
+        error("Previous exceeds boundaries.")
 
     def parseRegex(self) -> RegexAST:
         ast = self.parseAlternate()
@@ -142,9 +154,13 @@ class RegexParser:
     def parseConcat(self) -> RegexAST:
         left = self.parseClosure()
 
-        while (
-            self.peek().type == TokenType.SYMBOL) or (self.peek().type == TokenType.LEFT_PAR
-        ):
+        # because concatenation is encoded symbollessly we must check valid
+        # next tokens at this point
+        while self.peek().type in {
+            TokenType.SYMBOL,
+            TokenType.LEFT_PAR,
+            TokenType.LEFT_BRACK,
+        }:
             operator = Token(TokenType.CONCAT, "")
             left = RegexAST(operator, [left, self.parseClosure()])
 
@@ -166,10 +182,51 @@ class RegexParser:
             self.consume(TokenType.RIGHT_PAR, "Expected ')'")
             return ast
 
-        if self.peek().type == TokenType.SYMBOL:
+        elif self.peek().type == TokenType.SYMBOL:
             return RegexAST(self.advance(), [])
 
-        error(f"Expected symbol or '(', got {self.peek()}")
+        elif self.peek().type == TokenType.LEFT_BRACK:
+            self.consume(TokenType.LEFT_BRACK, "Expected '['")
+            ast = self.parseSet()
+            self.consume(TokenType.RIGHT_BRACK, "Expected ']'")
+            return ast
+
+        error(f"Expected symbol or '(' or '[', got {self.peek()}")
+
+    # the node stores the valid chars in the lexeme
+    def parseSet(self) -> RegexAST:
+        if self.peek().type == TokenType.RIGHT_BRACK:
+            error("Character set cannot be empty.")
+
+        lexeme = ""
+        while self.peek().type != TokenType.RIGHT_BRACK:
+            if self.peek().type != TokenType.SYMBOL:
+                error("Expected only symbols in set.")
+
+# yes, this part is a little "crafty" and I should probably do it better
+# better idea: in a loop, parse with max. lookahead of 3, if there was a '-', or return after first char
+            if self.peek().lexeme == '-': # ranged character set
+                previous = self.previous()
+                next = self.peek(ahead=1)
+                if previous.type != TokenType.SYMBOL or next.type != TokenType.SYMBOL:
+                    error(f"Invalid range in character set '{self.peek().lexeme}'.")
+
+                chars = [ 
+                    chr(i) for i in 
+                    range(ord(previous.lexeme[0]), ord(next.lexeme[0]) + 1)
+                ]
+                for char in chars:
+                    lexeme += char
+
+                self.advance()
+                self.advance()
+
+                continue
+            
+            lexeme += self.advance().lexeme
+
+        return RegexAST(Token(TokenType.SET, lexeme), [])
+
 
 if __name__ == "__main__":
     re1 = "A(B|C)*D"

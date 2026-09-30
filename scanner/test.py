@@ -81,4 +81,64 @@ if __name__ == "__main__":
         }
     )
 
-   
+    testRegex(
+        "[ABC]",
+        {
+            "" : False,
+            "A" : True,
+            "B" : True,
+            "C" : True,
+            "D" : False
+        }
+    )
+
+    testRegex(
+        "[ABC]*",
+        {
+            "" : True,
+            "A" : True,
+            "ABCCA" : True
+        }
+    )
+
+    testRegex(
+        "AB*(C|A)*[123]*",
+        {
+            "" : False,
+            "A" : True,
+            "AA" : True,
+            "ABCA" : True,
+            "AC" : True,
+            "AC123" : True
+        }
+    )
+
+    testRegex(
+        "[1234567890]*",
+        {
+            "" : True,
+            "001" : True,
+            "92291283" : True,
+            "0x" : False
+        }
+    )
+
+    testRegex(
+        "[0-9]*",
+        {
+            "" : True,
+            "001" : True,
+            "92291283" : True,
+            "0x" : False
+        }
+    )
+
+    testRegex(
+        "[a-z]*",
+        {
+            "" : True,
+            "hello" : True,
+            "world" : True,
+            "!" : False
+        }
+    )

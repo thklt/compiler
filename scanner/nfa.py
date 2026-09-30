@@ -78,11 +78,17 @@ class NFAGenerator:
                 if ast.token.type == TokenType.SYMBOL:
                     # -> s_0 -char-> s_a
 
-                    nfa.addTransition(
-                        nfa.start, ast.token.lexeme, nfa.accept
-                    )
+                    nfa.addTransition(nfa.start, ast.token.lexeme, nfa.accept)
                     return nfa
-                error("Expected Symbol at Node with no child.")
+
+                elif ast.token.type == TokenType.SET:
+                    # -> s_0 -char-> s_a for char in set
+                    
+                    for char in ast.token.lexeme:
+                        nfa.addTransition(nfa.start, char, nfa.accept)
+                    return nfa
+                
+                error("Expected Symbol or Set at Node with no child.")
 
             case 1:
                 childNfa = self.generateNFA(ast.children[0])
