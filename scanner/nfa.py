@@ -39,7 +39,13 @@ class NFA:
         out += f"accept: {self.accept}\n\n"
         out += self.printTransitions()
         return out
-    
+
+    def getAlphabet(self) -> set[str]:
+        alphabet = set()
+        for (_, symbol), _ in self.transitions.items():
+            alphabet.add(symbol)
+        return alphabet - {"eps"}
+            
 
 class NFAGenerator:
     """
