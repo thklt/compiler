@@ -27,6 +27,27 @@ class DFA:
         out += self.printTransitions()
         return out
 
+    def transition(self, currentState: str, char: str) -> str | None:
+        if (currentState, char) in self.transitions:
+            return self.transitions[(currentState, char)]
+        return None
+
+    def match(self, s: str) -> bool:
+        currentState = self.start
+
+        for char in s:
+            nextState = self.transition(currentState, char)
+            if not nextState: # pattern matching failed
+                return False
+            currentState = nextState
+        # input fully consumed
+
+        if not currentState in self.accept: # must end in accepting state
+            return False
+
+        return True
+    
+
 class DFAGenerator:
 
     def __init__(self, nfa: NFA):
@@ -73,6 +94,9 @@ class DFAGenerator:
                 reachable |= self.nfa.transitions[key]
         return reachable
 
+    """
+    This function builds the DFA and returns it. It uses the Subset Construction.
+    """
     def generateDFA(self) -> DFA:
         dfa = DFA()
 
@@ -121,6 +145,12 @@ class DFAGenerator:
 
         return (Q, T)
 
+def createDFA(regex: str) -> DFA:
+    scanner = RegexScanner(regex)
+    parser = RegexParser(scanner.scan())
+    ast = parser.parseRegex()
+    nfa = NFAGenerator(ast).generateNFA(ast)
+    dfa = DFAGenerator(nfa).generateDFA()
 
-
+    return dfa
     
