@@ -9,9 +9,76 @@ def testRegex(regex: str, inputOutput: dict[str, bool]):
 
 if __name__ == "__main__":
     testRegex(
-        "(1|2|3)*", {
-            "1" : True,
-            "2" : True,
-            "12": True
+        "ABC",
+        {
+            "" : False,  
+            "ABC" : True,
+            "AB" : False,
+            "ABCD" : False,
         }
     )
+
+    testRegex(
+        "A*",
+        {
+            "" : True,
+            "A" : True,
+            "AA" : True,
+            "AB" : False
+        }
+    )
+
+    testRegex(
+        "A|B",
+        {
+            "" : False,
+            "A" : True,
+            "AB" : False,
+            "B" : True
+        }
+    )
+
+    testRegex(
+        "(A|B)*",
+        {
+            "" : True,
+            "A" : True,
+            "AB" : True,
+            "B" : True,
+            "AABABABB" : True
+        }
+    )
+
+    testRegex(
+        "(AA)*",
+        {
+            "" : True,
+            "A" : False,
+            "B" : False,
+            "AAAAAA" : True,
+            "AAA" : False
+        }
+    )
+
+    testRegex(
+        "(A|AA)",
+        {
+            "" : False,
+            "AA" : True,
+            "A" : True,
+            "AAA" : False
+        }
+    )
+
+    testRegex(
+        "AB*(C|A)*",
+        {
+            "" : False,
+            "A" : True,
+            "AA" : True,
+            "ABCA" : True,
+            "AC" : True
+        }
+    )
+
+   
