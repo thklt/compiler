@@ -1,6 +1,7 @@
 """
-Implementation of the Subset Construction to construct DFAs from NFAs. This makes
-the simulation easier.
+This module implements utilities to construct DFAs from NFAs. 
+Subset Construction to convert an NFA to a DFA and Hopcroft's algorithm to
+minimize the DFA.
 """
 
 from nfa import *
@@ -32,27 +33,31 @@ class DFA:
             return self.transitions[(currentState, char)]
         return None
 
-    def match(self, s: str) -> bool:
+    def match(self, s: str) -> tuple[bool, str]: # (was successful, current state)
         currentState = self.start
 
         for char in s:
             nextState = self.transition(currentState, char)
             if not nextState: # pattern matching failed
-                return False
+                return (False, currentState)
             currentState = nextState
         # input fully consumed
 
         if not currentState in self.accept: # must end in accepting state
-            return False
+            return (False, currentState)
 
-        return True
+        return (True, currentState)
     
 
+"""
+Build a DFA from an NFA via Subset Construction.
+"""
 class DFAGenerator:
 
     def __init__(self, nfa: NFA):
         self.nfa = nfa
         self.nextState = 0
+        self.dfaStates: dict[frozenset, str] = {} # mapping from nfa configuration to dfa state
 
     def newState(self):
         state = f"s_{self.nextState}"
@@ -103,10 +108,9 @@ class DFAGenerator:
         Q, T = self.subsetConstruction()
 
         # build the states
-        dfaStates = {}
         for q in Q:
             d = self.newState()
-            dfaStates[q] = d # create a mapping from configurations to new DFA states
+            self.dfaStates[q] = d # create a mapping from configurations to new DFA states
             dfa.states.add(d)
             if self.nfa.start in q: # is start configuration?
                 dfa.start = d
@@ -115,8 +119,8 @@ class DFAGenerator:
 
         # build the transitions
         for (q, char), qNext in T.items():
-            d = dfaStates[q]
-            dNext = dfaStates[qNext]
+            d = self.dfaStates[q]
+            dNext = self.dfaStates[qNext]
             dfa.transitions[(d, char)] = dNext
 
         return dfa
@@ -149,8 +153,22 @@ def createDFA(regex: str) -> DFA:
     scanner = RegexScanner(regex)
     parser = RegexParser(scanner.scan())
     ast = parser.parseRegex()
-    nfa = NFAGenerator(ast).generateNFA(ast)
+    nfa = NFAGenerator().generateNFA(ast)
     dfa = DFAGenerator(nfa).generateDFA()
 
     return dfa
+
+
+"""
+Minimize a DFA by Hopcroft's Algorithm. This makes the recognizer more space
+efficient.
+"""
+class DFAMinimizer:
+
+    def __init__(self, dfa: DFA):
+        self.dfa = dfa
+
+    
+
+    pass
     

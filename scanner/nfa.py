@@ -20,12 +20,6 @@ class NFA:
             self.transitions[key] = set()
         self.transitions[key].add(destination)
 
-    # expand a child nfa in their parent
-    def merge(self, source: "NFA"):
-        for key, destinations in source.transitions.items():
-            self.transitions.setdefault(key, set()).update(destinations)
-        self.states |= source.states
-
     def printTransitions(self) -> str:
         out = ""
         for (source, symbol), destinations in self.transitions.items():
@@ -45,6 +39,15 @@ class NFA:
         for (_, symbol), _ in self.transitions.items():
             alphabet.add(symbol)
         return alphabet - {"eps"}
+
+    """
+    Expand a child nfa in their parent.
+    """
+    def expand(self, child: "NFA"):
+        for key, destinations in child.transitions.items():
+            self.transitions.setdefault(key, set()).update(destinations)
+        self.states |= child.states
+
             
 
 class NFAGenerator:
@@ -53,8 +56,7 @@ class NFAGenerator:
     the precedence learned in the AST.
     """
 
-    def __init__(self, root: RegexAST):
-        self.root = root
+    def __init__(self):
         self.nextState = 0 # global state counter
 
     def newState(self):
@@ -103,7 +105,7 @@ class NFAGenerator:
                     nfa.addTransition(nfa.start, "eps", nfa.accept)
                     nfa.addTransition(childNfa.accept, "eps", childNfa.start)
 
-                    nfa.merge(childNfa)
+                    nfa.expand(childNfa)
 
                     return nfa
 
@@ -120,8 +122,8 @@ class NFAGenerator:
                     nfa.addTransition(leftChildNfa.accept, "eps", rightChildNfa.start)
                     nfa.addTransition(rightChildNfa.accept, "eps", accept)
 
-                    nfa.merge(leftChildNfa)
-                    nfa.merge(rightChildNfa)
+                    nfa.expand(leftChildNfa)
+                    nfa.expand(rightChildNfa)
 
                     return nfa
 
@@ -135,8 +137,8 @@ class NFAGenerator:
                     nfa.addTransition(leftChildNfa.accept, "eps", accept)
                     nfa.addTransition(rightChildNfa.accept, "eps", accept)
 
-                    nfa.merge(leftChildNfa)
-                    nfa.merge(rightChildNfa)
+                    nfa.expand(leftChildNfa)
+                    nfa.expand(rightChildNfa)
 
                     return nfa
                     
@@ -147,7 +149,6 @@ class NFAGenerator:
 
             case _:
                 error("Unmatched children.")
-
 
 if __name__ == "__main__":
     print("Test")

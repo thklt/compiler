@@ -6,8 +6,7 @@ if __name__ == "__main__":
     re = "[Z-B]"
     ast = regex.RegexParser(regex.RegexScanner(re).scan()).parseRegex()
     print(ast)
-    nfaGen = nfa.NFAGenerator(ast)
-    nfa = nfaGen.generateNFA(nfaGen.root)
+    nfa = nfa.NFAGenerator().generateNFA(ast)
     print(nfa)
     # dfaGen = dfa.DFAGenerator(nfa)
     # # eps = _dfa.epsClosure(set([_nfa.start]))

@@ -60,8 +60,6 @@ class RegexScanner:
         match self.nextChar():
             case '*':
                 return Token(TokenType.ASTERISK, '*')
-            # case '.':
-            #     return Token(TokenType.CONCAT, '.')
             case '|':
                 return Token(TokenType.ALTERNATE, '|')
             case '(':
@@ -227,6 +225,8 @@ class RegexParser:
 
         return RegexAST(Token(TokenType.SET, lexeme), [])
 
+def createAST(regex: str) -> RegexAST:
+    return RegexParser(RegexScanner(regex).scan()).parseRegex()
 
 if __name__ == "__main__":
     re1 = "A(B|C)*D"
