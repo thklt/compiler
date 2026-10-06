@@ -71,10 +71,8 @@ class RegexScanner:
             case ']':
                 return Token(TokenType.RIGHT_BRACK, ']')
             case x:
-                if x != '.':
-                    return Token(TokenType.SYMBOL, x)
-                else:
-                    error(f"Could not resolve character {x}.")
+                return Token(TokenType.SYMBOL, x)
+            
 
 class RegexAST:
 

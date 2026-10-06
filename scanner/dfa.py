@@ -13,6 +13,8 @@ class DFA:
         self.accept = set()
         self.states = set()
         self.transitions = dict()
+        self.alphabet: set
+        self.sinkStates = set()
 
     def printTransitions(self) -> str:
         out = ""
@@ -24,14 +26,15 @@ class DFA:
         out = ""
         out += f"states: {str(self.states)}\n"
         out += f"start: {self.start}\n"
-        out += f"accept: {self.accept}\n\n"
+        out += f"accept: {self.accept}\n"
+        out += f"sink: {self.sinkStates}\n\n"
         out += self.printTransitions()
         return out
 
-    def transition(self, currentState: str, char: str) -> str | None:
+    def transition(self, currentState: str, char: str) -> str:
         if (currentState, char) in self.transitions:
             return self.transitions[(currentState, char)]
-        return None
+        return ""
 
     def match(self, s: str) -> tuple[bool, str]: # (was successful, current state)
         currentState = self.start
@@ -47,6 +50,9 @@ class DFA:
             return (False, currentState)
 
         return (True, currentState)
+
+    def isDeadState(self, state: str) -> bool:
+        return state in self.sinkStates
     
 
 """
@@ -123,6 +129,22 @@ class DFAGenerator:
             dNext = self.dfaStates[qNext]
             dfa.transitions[(d, char)] = dNext
 
+        # find sink states
+        for state in dfa.states:
+            isSink = True
+
+            for (_state, _), _next in dfa.transitions.items():
+                if _state != state:
+                    continue
+
+                if _next != state:
+                    isSink = False
+                    break
+
+            if isSink:
+                dfa.sinkStates.add(state)
+
+        dfa.alphabet = self.nfa.getAlphabet()
         return dfa
 
     """
@@ -141,6 +163,7 @@ class DFAGenerator:
 
             for char in alphabet:
                 t = frozenset(self.epsClosure(self.delta(q, char)))
+
                 T[(q,char)] = t
 
                 if t not in Q:
