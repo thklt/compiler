@@ -52,6 +52,8 @@ class DFA:
         return (True, currentState)
 
     def isDeadState(self, state: str) -> bool:
+        if not self.sinkStates:
+            error("Expected sink states to be initialized.")
         return state in self.sinkStates
     
 
@@ -190,8 +192,115 @@ class DFAMinimizer:
 
     def __init__(self, dfa: DFA):
         self.dfa = dfa
+        self.newDfa: DFA
+        self.nextState = 0
+        self.newDfaMapping: dict[frozenset, str] = {}
 
-    
+    def newState(self):
+        state = f"s_{self.nextState}"
+        self.nextState += 1
+        return state
 
-    pass
-    
+    def split(self, S: frozenset) -> set:
+        groups = {}
+
+        for s in S:
+            destinantions = []
+
+            for c in self.dfa.alphabet:
+                destination = self.dfa.transitions[(s, c)]
+
+                # find all partitions which contatin the destination
+                for p in self.P:
+                    if destination in p:
+                        destinantions.append(p)
+                        break
+
+            destinantions = tuple(destinantions)
+
+            if destinantions not in groups:
+                groups[destinantions] = set()
+
+            groups[destinantions].add(s)
+
+        return {frozenset(group) for group in groups.values()}
+
+    def minimize(self):
+        T = set()
+        self.P = set()
+
+        accepting = frozenset(self.dfa.accept)
+        nonAccepting = frozenset(self.dfa.states - self.dfa.accept)
+
+        # avoid empty sets
+        if accepting:
+            T.add(accepting)
+
+        if nonAccepting:
+            T.add(nonAccepting)
+
+        while self.P != T:
+            self.P = T
+            T = set()
+
+            for p in self.P:
+                T |= self.split(p)
+
+
+    def generateNewDfa(self):
+        self.newDfa = DFA()
+        self.newDfa.alphabet = self.dfa.alphabet
+
+        # create new states and map them by their partition sets
+        for p in self.P:
+            newState = self.newState()
+
+            self.newDfa.states.add(newState)
+            self.newDfaMapping[p] = newState
+
+            # start?
+            if self.dfa.start in p:
+                self.newDfa.start = newState
+
+            # accepting?
+            if p & self.dfa.accept:
+                self.newDfa.accept.add(newState)
+
+        # create transitions
+        for p in self.P:
+            representative = next(iter(p))
+            newState = self.newDfaMapping[p]
+
+            for c in self.dfa.alphabet:
+                destination = self.dfa.transitions[(representative, c)]
+
+                for destinationPartition in self.P:
+                    if destination in destinationPartition:
+                        newDestination = self.newDfaMapping[destinationPartition]
+                        self.newDfa.transitions[(newState, c)] = newDestination
+                        break
+
+        # find sink state
+        for state in self.newDfa.states:
+            isSink = True
+
+            for (_state, _), _next in self.newDfa.transitions.items():
+                if _state != state:
+                    continue
+
+                if _next != state:
+                    isSink = False
+                    break
+
+            if isSink:
+                self.newDfa.sinkStates.add(state)
+
+if __name__ == "__main__":
+    dfa = createDFA("h[ae]*llo*")
+    minimizer = DFAMinimizer(dfa)
+    minimizer.minimize()
+    minimizer.generateNewDfa()
+    print(minimizer.newDfa)
+    print(dfa)
+    print(minimizer.newDfa.match("hello"))
+
