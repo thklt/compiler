@@ -1,8 +1,12 @@
-from dfa import createDFA
+from dfa import createDFA, DFAMinimizer
 from lexer import Lexer, Token
 
 def testRegex(regex: str, inputOutput: dict[str, bool]):
     dfa = createDFA(regex)
+    minimizer = DFAMinimizer(dfa)
+    minimizer.minimize()
+    minimizer.generateNewDfa()
+    dfa = minimizer.newDfa
 
     for input, output in inputOutput.items():
         (result, _) = dfa.match(input)
@@ -12,23 +16,26 @@ def testLexer(rules: str, text: str, expected: list[Token]):
     lexer = Lexer(text=rules)
     tokens = lexer.tokenize(text)
 
+    if len(tokens) != len(expected):
+        print(f"{text}: Missmatching lengths: given has length {len(tokens)} and expected has length {len(expected)}.")
+        exit(1)
     for i, (token, expect) in enumerate(zip(tokens, expected)):
         assert (
             token.type == expect.type and token.lexeme == expect.lexeme
         ), (
-            f"Expected {expect.type}({expect.lexeme}) but found {token.type}({token.lexeme}) at position {i}."
+            f"{text}: Expected {expect.type}({expect.lexeme}) but found {token.type}({token.lexeme}) at position {i}."
         )
 
-testOnRegex = False
+testOnRegex = True
 testOnLexer = True
 
 if __name__ == "__main__":
 
     if testOnRegex:
         testRegex(
-            "ABC",
+            r"ABC",
             {
-                "" : False,  
+                "" : False,
                 "ABC" : True,
                 "AB" : False,
                 "ABCD" : False,
@@ -36,7 +43,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "A*",
+            r"A*",
             {
                 "" : True,
                 "A" : True,
@@ -46,7 +53,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "A|B",
+            r"A|B",
             {
                 "" : False,
                 "A" : True,
@@ -56,7 +63,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "(A|B)*",
+            r"(A|B)*",
             {
                 "" : True,
                 "A" : True,
@@ -67,7 +74,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "(AA)*",
+            r"(AA)*",
             {
                 "" : True,
                 "A" : False,
@@ -78,7 +85,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "(A|AA)",
+            r"(A|AA)",
             {
                 "" : False,
                 "AA" : True,
@@ -88,7 +95,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "AB*(C|A)*",
+            r"AB*(C|A)*",
             {
                 "" : False,
                 "A" : True,
@@ -99,7 +106,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "[ABC]",
+            r"[ABC]",
             {
                 "" : False,
                 "A" : True,
@@ -110,7 +117,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "[ABC]*",
+            r"[ABC]*",
             {
                 "" : True,
                 "A" : True,
@@ -119,19 +126,20 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "AB*(C|A)*[123]*",
+            r"AB*(C|A)*[123]*a+b?",
             {
                 "" : False,
-                "A" : True,
-                "AA" : True,
-                "ABCA" : True,
-                "AC" : True,
-                "AC123" : True
+                "Aa" : True,
+                "AAa" : True,
+                "ABCAab" : True,
+                "ABCAabb" : False,
+                "ACaa" : True,
+                "AC123a" : True
             }
         )
 
         testRegex(
-            "[1234567890]*",
+            r"[1234567890]*",
             {
                 "" : True,
                 "001" : True,
@@ -141,7 +149,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "[0-9]*",
+            r"[0-9]*",
             {
                 "" : True,
                 "001" : True,
@@ -151,7 +159,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "[a-z]*",
+            r"[a-z]*",
             {
                 "" : True,
                 "hello" : True,
@@ -161,7 +169,7 @@ if __name__ == "__main__":
         )
 
         testRegex(
-            "[ ]*",
+            r"[ ]*",
             {
                 "" : True,
                 " " : True,
@@ -171,56 +179,79 @@ if __name__ == "__main__":
             }
         )
 
+        testRegex(
+            r"a+",
+            {
+                "" : False,
+                "b" : False,
+                "a" : True,
+                "aaa" : True,
+            }
+        )
+
+        testRegex(
+            r"(a+)*",
+            {
+                "" : True,
+                "b" : False,
+                "a" : True,
+                "aaa" : True,
+            }
+        )
+
+        testRegex(
+            r"a?",
+            {
+                "" : True,
+                "b" : False,
+                "a" : True,
+                "aaa" : False,
+            }
+        )
+
     if testLexer:
         testLexer(
-            "[A-Za-z][A-Za-z0-9]* : IDENTIFIER\n"
-            "[.?!] : DELIMITER\n"
-            "[ ]* : WHITE",
+            r"""
+                [A-Za-z][A-Za-z0-9]* : IDENTIFIER
+                [.!] : DELIMITER
+                [ ]* : WHITE
+            """,
 
-            "This is just one test sentence.!?",
+            "This is just one test sentence.!",
             [
                 Token("IDENTIFIER", "This"),
-                Token("WHITE", " "),
                 Token("IDENTIFIER", "is"),
-                Token("WHITE", " "),
                 Token("IDENTIFIER", "just"),
-                Token("WHITE", " "),
                 Token("IDENTIFIER", "one"),
-                Token("WHITE", " "),
                 Token("IDENTIFIER", "test"),
-                Token("WHITE", " "),
                 Token("IDENTIFIER", "sentence"),
                 Token("DELIMITER", "."),
                 Token("DELIMITER", "!"),
-                Token("DELIMITER", "?"),
             ]
         )
 
         testLexer(
-                    "int : INT\n"
-                    "[A-Za-z][A-Za-z0-9]* : IDENTIFIER\n"
-                    "; : SEMICOLON\n"
-                    "[0-9]* : INTEGER\n"
-                    "= : EQUALS\n"
-                    "== : EQUALS_EQUALS\n"
-                    "[ ]* : WHITE",
-        
-                    "int x = 42; x == x;",
-                    [
-                        Token("INT", "int"),
-                        Token("WHITE", " "),
-                        Token("IDENTIFIER", "x"),
-                        Token("WHITE", " "),
-                        Token("EQUALS", "="),
-                        Token("WHITE", " "),
-                        Token("INTEGER", "42"),
-                        Token("SEMICOLON", ";"),
-                        Token("WHITE", " "),
-                        Token("IDENTIFIER", "x"),
-                        Token("WHITE", " "),
-                        Token("EQUALS_EQUALS", "=="),
-                        Token("WHITE", " "),
-                        Token("IDENTIFIER", "x"),
-                        Token("SEMICOLON", ";"),
-                    ]
-                )
+            r"""
+                int : INT
+                [A-Za-z][A-Za-z0-9]* : IDENTIFIER
+                ; : SEMICOLON
+                [0-9]* : INTEGER
+                = : EQUALS
+                == : EQUALS_EQUALS
+                [ \n]+ : WHITE
+            """,
+            """int x = 42; x == x;
+int""",
+            [
+                Token("INT", "int"),
+                Token("IDENTIFIER", "x"),
+                Token("EQUALS", "="),
+                Token("INTEGER", "42"),
+                Token("SEMICOLON", ";"),
+                Token("IDENTIFIER", "x"),
+                Token("EQUALS_EQUALS", "=="),
+                Token("IDENTIFIER", "x"),
+                Token("SEMICOLON", ";"),
+                Token("INT", "int")
+            ]
+        )

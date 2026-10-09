@@ -80,14 +80,14 @@ class NFAGenerator:
                 if ast.token.type == TokenType.SYMBOL:
                     # -> s_0 -char-> s_a
 
-                    nfa.addTransition(nfa.start, ast.token.lexeme, nfa.accept)
+                    nfa.addTransition(start, ast.token.lexeme, accept)
                     return nfa
 
                 elif ast.token.type == TokenType.SET:
                     # -> s_0 -char-> s_a for char in set
                     
                     for char in ast.token.lexeme:
-                        nfa.addTransition(nfa.start, char, nfa.accept)
+                        nfa.addTransition(start, char, accept)
                     return nfa
                 
                 error("Expected Symbol or Set at Node with no child.")

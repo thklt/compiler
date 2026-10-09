@@ -225,19 +225,22 @@ class DFAMinimizer:
 
         return {frozenset(group) for group in groups.values()}
 
-    def minimize(self):
+    def minimize(self, startPartition: set[frozenset]=set()):
         T = set()
         self.P = set()
 
-        accepting = frozenset(self.dfa.accept)
-        nonAccepting = frozenset(self.dfa.states - self.dfa.accept)
+        if not startPartition:
+            accepting = frozenset(self.dfa.accept)
+            nonAccepting = frozenset(self.dfa.states - self.dfa.accept)
 
-        # avoid empty sets
-        if accepting:
-            T.add(accepting)
+            # avoid empty sets
+            if accepting:
+                T.add(accepting)
 
-        if nonAccepting:
-            T.add(nonAccepting)
+            if nonAccepting:
+                T.add(nonAccepting)
+        else:
+            T.update(startPartition)
 
         while self.P != T:
             self.P = T

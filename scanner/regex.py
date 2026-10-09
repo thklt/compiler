@@ -27,6 +27,9 @@ class TokenType(Enum):
     RIGHT_BRACK = 9 # ']'
     SET = 10 # holds a set of possible chars
 
+    PLUS = 11 # finite closure
+    QUESTIONMARK = 12 # allow once
+
 class Token:
 
     def __init__(self, type: TokenType, lexeme: str):
@@ -56,8 +59,24 @@ class RegexScanner:
         return char
 
     def nextToken(self) -> Token: # type: ignore
+        char = self.nextChar()
 
-        match self.nextChar():
+        if char == "\\": # escape character
+            if not self.index < len(self.text):
+                error("Missing escape character after \\.")
+
+            nextChar = self.nextChar()
+            escapeMap = {
+                "n" : "\n",
+                "t" : "\t",
+            }
+
+            if not nextChar in escapeMap:
+                error(f"Unknown escape sequence \\{nextChar}.")
+
+            return Token(TokenType.SYMBOL, escapeMap[nextChar])
+
+        match char:
             case '*':
                 return Token(TokenType.ASTERISK, '*')
             case '|':
@@ -70,6 +89,10 @@ class RegexScanner:
                 return Token(TokenType.LEFT_BRACK, '[')
             case ']':
                 return Token(TokenType.RIGHT_BRACK, ']')
+            case '+':
+                return Token(TokenType.PLUS, '+')
+            case '?':
+                return Token(TokenType.QUESTIONMARK, '?')
             case x:
                 return Token(TokenType.SYMBOL, x)
             
@@ -100,7 +123,7 @@ class RegexParser:
     regex = alternate
     alternate = concat ('|' concat)*
     concat = closure (closure)*
-    closure = atomic ('*')*
+    closure = atomic ( ('*')* | ('+')* | ('?')* )
     atomic = symbol | '(' alternate ')' | '[' set ']'
     """
 
@@ -165,9 +188,29 @@ class RegexParser:
     def parseClosure(self) -> RegexAST:
         left = self.parseAtomic()
 
-        while self.peek().type == TokenType.ASTERISK:
-            operator = self.advance()
-            left = RegexAST(operator, [left])
+        if self.peek().type == TokenType.ASTERISK:
+            while self.peek().type == TokenType.ASTERISK:
+                operator = self.advance()
+                left = RegexAST(operator, [left])
+        elif self.peek().type == TokenType.PLUS:
+            while self.peek().type == TokenType.PLUS:
+                self.advance()
+                # x+ = xx*
+                atomic = left
+                left = RegexAST(
+                    Token(TokenType.CONCAT, ""), [
+                        atomic, RegexAST(Token(TokenType.ASTERISK, "*"), [
+                            atomic
+                    ])
+                ])
+        elif self.peek().type == TokenType.QUESTIONMARK:
+            while self.peek().type == TokenType.QUESTIONMARK:
+                self.advance()
+                # x? = x | eps 
+                atomic = left
+                left = RegexAST(
+                    Token(TokenType.ALTERNATE, "|"), [atomic, RegexAST(Token(TokenType.SYMBOL, "eps"), [])]
+                )
 
         return left
 
@@ -178,7 +221,7 @@ class RegexParser:
             self.consume(TokenType.RIGHT_PAR, "Expected ')'")
             return ast
 
-        elif self.peek().type == TokenType.SYMBOL:
+        elif self.peek().type == TokenType.SYMBOL:           
             return RegexAST(self.advance(), [])
 
         elif self.peek().type == TokenType.LEFT_BRACK:

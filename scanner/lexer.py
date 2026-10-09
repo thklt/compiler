@@ -1,5 +1,5 @@
 from nfa import NFAGenerator, NFA
-from dfa import DFAGenerator, DFA
+from dfa import DFAGenerator, DFA, DFAMinimizer
 from regex import createAST
 
 """
@@ -33,6 +33,7 @@ class Lexer:
         self.precedence: list[str] = [] # token precedence according to input file
         self.nfaGen = NFAGenerator() # need a global instance to have unique state names
         self.dfaGen: DFAGenerator
+        self.minimizer: DFAMinimizer
         self.acceptToToken: dict[str, set[str]] = {} # assign each accepting state in the dfa the token(s) it accepts
 
         self.text: str
@@ -50,16 +51,24 @@ class Lexer:
     The ordering of the rules determins the precedence in case more than one rule matches.
     """
     def parseRuleString(self, text: str) -> dict[str, str]:
-        lines = text.split("\n")
+        lines = text.splitlines()
+
         for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
             split = line.split(":")
+
             if len(split) != 2:
                 error("False input syntax.")
+
             regex = split[0].strip()
             token = split[1].strip()
-            self.rules[regex] = token
 
+            self.rules[regex] = token
             self.precedence.append(token)
+            
         return self.rules
 
     """
@@ -88,14 +97,40 @@ class Lexer:
         # use the dfa generator's internal mapping to map each dfa state to its token
         self.dfaGen = DFAGenerator(newNfa)
         dfa = self.dfaGen.generateDFA()
+
         for (nfaState, token) in nfaAcceptToToken.items():
             for (nfaConfig, dfaState) in self.dfaGen.dfaStates.items():
                 if nfaState in nfaConfig:
                     self.acceptToToken.setdefault(dfaState, set()).update([token])
 
-        self.dfa = dfa
-     
-        return dfa
+        # minimize dfa
+        self.minimizer = DFAMinimizer(dfa)
+
+        # custom initial partition that maintains same tokensets of accepting states
+        # partition := s_acc | {s_nonacc} and s_acc := {q_0, ..., q_n} where 
+        # q_0 to q_n are accepting states with different token sets
+        partitionMap: dict[frozenset[str], set[str]] = {}
+        for state in dfa.states:
+            tokenSet = frozenset(self.acceptToToken.get(state, set()))
+            partitionMap.setdefault(tokenSet, set()).add(state)
+        partition = {
+            frozenset(states) for states in partitionMap.values()
+        }
+        
+        self.minimizer.minimize(startPartition=partition)
+        self.minimizer.generateNewDfa()
+
+        # map each dfa state to its token
+        newMapping: dict[str, set[str]] = {}
+        for (dfaState, tokenSet) in self.acceptToToken.items():
+            for (p, newState) in self.minimizer.newDfaMapping.items():
+                if dfaState in p:
+                    newMapping.setdefault(newState, set()).update(tokenSet)
+        self.acceptToToken = newMapping
+        # print(len(dfa.states), len(self.minimizer.newDfa.states))
+        self.dfa = self.minimizer.newDfa
+        
+        return self.dfa
 
     def getToken(self, state: str) -> str: # type: ignore
         if not state in self.dfa.accept:
@@ -113,7 +148,7 @@ class Lexer:
     
     def takeTransition(self, char: str) -> bool:
         if not char in self.dfa.alphabet:
-            error(f"Char {char} not in alphabet {self.dfa.alphabet}.")
+            error(f"Char {repr(char)} not in alphabet {self.dfa.alphabet}.")
         nextState = self.dfa.transition(self.currentState, char)
         if self.dfa.isDeadState(nextState):
             return False
@@ -148,6 +183,7 @@ class Lexer:
 
         while True:
             char = self.nextChar()
+
             if not char: # end of input, we can end on an accepting state
                 if self.isAcceptingState():
                     return Token(
@@ -164,18 +200,20 @@ class Lexer:
                     self.text[offset:self.index]
                 )
 
-            
-
     def tokenize(self, text: str) -> list[Token]:
         tokens = []
         self.index = 0
         self.text = text
 
         while True and self.index < len(self.text):
-            token = self.nextToken()
+            token = self.nextToken()                
 
             if not token:
                 break
+
+            if token.type == "WHITE": # ignore white space
+                continue
+
             tokens.append(token)
 
         return tokens
