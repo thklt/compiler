@@ -213,7 +213,7 @@ class Lexer:
             if not token:
                 break
 
-            if token.type == "WHITE": # ignore white space
+            if token.type == "WHITE" or token.type == "COMMENT": # ignore white space and comments
                 continue
 
             tokens.append(token)

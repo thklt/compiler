@@ -69,7 +69,8 @@ class RegexScanner:
             escapeMap = {
                 "n" : "\n",
                 "t" : "\t",
-                "+" : "+"
+                "+" : "+",
+                "*" : "*"
             }
 
             if not nextChar in escapeMap:

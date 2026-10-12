@@ -258,6 +258,7 @@ int""",
 
 lexer = Lexer(file="CTokens")
 with open("test.src", "r") as f:
-    tokens = lexer.tokenize(f.read())
+    # add the \n just because it simplifies the single-line comment detection
+    tokens = lexer.tokenize(f.read() + "\n")
     for token in tokens:
         print(token)

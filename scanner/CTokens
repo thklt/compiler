@@ -8,3 +8,4 @@ int : INT
 { : LEFT_BRACE
 } : RIGHT_BRACE
 [ \n]* : WHITE
+(//[a-zA-Z0-9 ]*\n)|(/\*[a-zA-Z0-9\n ]*\*/): COMMENT

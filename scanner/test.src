@@ -1,3 +1,9 @@
 int x = 10;
 int y = x + 3;
+/*
+This is
+a multiline
+comment
+*/
 { some shit }
+// Comment
