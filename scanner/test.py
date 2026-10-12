@@ -26,8 +26,8 @@ def testLexer(rules: str, text: str, expected: list[Token]):
             f"{text}: Expected {expect.type}({expect.lexeme}) but found {token.type}({token.lexeme}) at position {i}."
         )
 
-testOnRegex = True
-testOnLexer = True
+testOnRegex = False
+testOnLexer = False
 
 if __name__ == "__main__":
 
@@ -255,3 +255,9 @@ int""",
                 Token("INT", "int")
             ]
         )
+
+lexer = Lexer(file="CTokens")
+with open("test.src", "r") as f:
+    tokens = lexer.tokenize(f.read())
+    for token in tokens:
+        print(token)

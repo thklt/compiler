@@ -17,6 +17,8 @@ class Token:
         self.type = type
         self.lexeme = lexeme
 
+    def __str__(self) -> str:
+        return f"{self.type}('{self.lexeme}')"
 
 class Lexer:
 

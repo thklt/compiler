@@ -1,0 +1,10 @@
+int : INT
+[a-zA-Z][a-zA-Z0-9]* : IDENTIFIER
+[0-9]* : INTEGER
+= : EQUALS
+== : EQUALS_EQUALS
+\+ : PLUS
+; : SEMICOLON
+{ : LEFT_BRACE
+} : RIGHT_BRACE
+[ \n]* : WHITE
