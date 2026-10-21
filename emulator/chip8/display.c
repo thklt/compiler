@@ -9,11 +9,10 @@ typedef struct display {
     uint8_t *data;
     SDL_Window *window;
     SDL_Renderer *renderer;
-    bool active;
     SDL_Event event;
 } display_t;
 
-display_t *init_display(size_t width, size_t height, size_t pixel_size) {
+display_t *create_display(size_t width, size_t height, size_t pixel_size) {
     
     display_t *display = malloc(sizeof(display_t));
     if (!display) {
@@ -33,7 +32,7 @@ display_t *init_display(size_t width, size_t height, size_t pixel_size) {
         fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
         free(display->data);
         free(display);
-        return NULL;
+        exit(1);
     }
 
     display->window = SDL_CreateWindow(
@@ -50,7 +49,7 @@ display_t *init_display(size_t width, size_t height, size_t pixel_size) {
         SDL_Quit();
         free(display->data);
         free(display);
-        return NULL;
+        exit(1);
     }
 
     display->renderer = SDL_CreateRenderer(display->window, -1, SDL_RENDERER_ACCELERATED);
@@ -65,11 +64,8 @@ void destroy_display(display_t *display) {
     free(display);
 }
 
-void clear_display(display_t *display) {
-    SDL_SetRenderDrawColor(display->renderer, 0, 0, 0, 255);
-
-    SDL_RenderClear(display->renderer);
-    SDL_RenderPresent(display->renderer);
+int get_pos(display_t *display, int x, int y) {
+    return display->width * y + x;
 }
 
 #define WHITE 255, 255, 255, 255
@@ -95,9 +91,26 @@ void render_display(display_t *display) {
 
                 SDL_RenderFillRect(display->renderer, &pixel);
             }
+
+            //printf("%b", display->data[pos]);
+        }
+        //printf("\n");
+    }
+    //printf("\n\n\n");
+
+    SDL_RenderPresent(display->renderer);
+}
+
+void clear_display(display_t *display) {
+    for (int i = 0; i < display->height; i++) {
+        for (int j = 0; j < display->width; j++) {
+            display->data[get_pos(display, j, i)] = false;
         }
     }
 
+    SDL_SetRenderDrawColor(display->renderer, 0, 0, 0, 255);
+
+    SDL_RenderClear(display->renderer);
     SDL_RenderPresent(display->renderer);
 }
 
