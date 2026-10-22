@@ -70,7 +70,8 @@ class RegexScanner:
                 "n" : "\n",
                 "t" : "\t",
                 "+" : "+",
-                "*" : "*"
+                "*" : "*",
+                ":" : ":"
             }
 
             if not nextChar in escapeMap:

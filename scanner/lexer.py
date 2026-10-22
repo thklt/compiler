@@ -20,6 +20,9 @@ class Token:
     def __str__(self) -> str:
         return f"{self.type}('{self.lexeme}')"
 
+    def __repr__(self) -> str:
+        return self.__str__()
+
 class Lexer:
 
     def __init__(self, file: str="", text: str=""):
@@ -60,7 +63,7 @@ class Lexer:
             if not line:
                 continue
 
-            split = line.split(":")
+            split = line.split(" : ")
 
             if len(split) != 2:
                 error("False input syntax.")
@@ -172,7 +175,7 @@ class Lexer:
             if self.isAcceptingState():
                 self.index += 1
                 return
-        error("Rollback failed.")
+        error("Rollback failed.") # replace with better message (invalid text, print last valid position)
 
     """
     Repeatedly get the longest match out of the string.

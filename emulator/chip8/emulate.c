@@ -1,7 +1,10 @@
+#define _POSIX_C_SOURCE 199309L
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 #include "display.c"
 
 #define MEMORY_SIZE 4 * 1024
@@ -13,6 +16,8 @@
 #define DISPLAY_WIDTH 64
 #define DISPLAY_HEIGHT 32
 #define PIXEL_SIZE 10
+
+#define CLOCK_HZ 10
 
 #define MAX_STACK_SIZE 100
 
@@ -56,22 +61,22 @@ int pop(uint16_t *addr) {
 }
 
 uint8_t font[] = {
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0, 80
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1, 85
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2, 90
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3, 95
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4, 100
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5, 105
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6, 110
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7, 115
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8, 120
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9, 125
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // A, 130
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B, 135
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // C, 140
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // D, 145
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E, 150
+    0xF0, 0x80, 0xF0, 0x80, 0x80  // F, 155
 };
 
 uint8_t memory[MEMORY_SIZE] = { 0 };
@@ -80,6 +85,9 @@ uint8_t delay_timer, sound_timer;
 uint8_t general_reg[16];
 display_t *display;
 
+int64_t last_time_stamp_timer = 0;
+int64_t last_time_stamp_cpu = 0;
+
 void initialize() {
     memcpy(&memory[FONT_OFFSET], font, sizeof(font));
     display = create_display(
@@ -87,15 +95,6 @@ void initialize() {
         DISPLAY_HEIGHT,
         PIXEL_SIZE
     );
-}
-
-unsigned char *get_address(uint16_t addr) {
-    if (addr >= MAX_PROGRAM_SIZE) {
-        fprintf(stderr, "Invalid address: 0x%X\n", addr);
-        exit(1);
-    }
-
-    return &memory[addr];
 }
 
 void fetch_decode_execute() {
@@ -108,8 +107,6 @@ void fetch_decode_execute() {
     uint8_t n = word & 0xF;
     uint8_t nn = word & 0xFF;
     uint16_t nnn = word & 0xFFF;
-
-
 
     switch (op) {
         case 0x0:
@@ -168,8 +165,35 @@ void fetch_decode_execute() {
 
 }
 
-void synchronize_timers() {
+int64_t get_current_time_ms() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
 
+    int64_t ms = (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    return ms;
+}
+
+void play_sound() {
+    printf("Sound\n");
+}
+
+void synchronize_timers() {
+    int64_t current_time_stamp = get_current_time_ms();
+
+    if (!last_time_stamp_timer) {
+        last_time_stamp_timer = current_time_stamp;
+        return;
+    }
+
+    if (current_time_stamp - last_time_stamp_timer >= 16.6) { // 1000ms / 60 for 60 Hz
+        last_time_stamp_timer = current_time_stamp;
+    }
+    if (sound_timer > 0) {
+        play_sound();
+        sound_timer--;
+    }
+    if (delay_timer > 0)
+        delay_timer--;
 }
 
 size_t load_program(const char *filename) {
@@ -201,21 +225,26 @@ size_t load_program(const char *filename) {
 }
 
 void run() {
+    last_time_stamp_cpu = get_current_time_ms();
 
-    //int cycles = 100;
     bool running = true;
     while (running) {
+
+        int64_t current_time_stamp = get_current_time_ms();
+        if (!(current_time_stamp - last_time_stamp_cpu >= 1000 / CLOCK_HZ))
+            continue;
+        last_time_stamp_cpu = current_time_stamp;
 
         while (SDL_PollEvent(&display->event)) {
             if (display->event.type == SDL_QUIT) {
                 running = false;
             } else if (display->event.type == SDL_KEYDOWN) {
-                display->data[600] = true;
+                sound_timer = 2;
             }
         }
 
+        synchronize_timers();
         fetch_decode_execute();
-
         render_display(display);
 
         // fetch
@@ -250,7 +279,7 @@ int main() {
 
     initialize();
     //char *program = read_file("IBM_logo.ch8");
-    load_program("roms/IBM_logo.ch8");
+    load_program("roms/test.ch8");
     run();
 
     return 0;
